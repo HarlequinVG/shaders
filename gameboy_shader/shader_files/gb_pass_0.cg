@@ -59,21 +59,6 @@ struct prev_3
     sampler2D texture : TEXUNIT4;
 };
 
-struct prev_4
-{
-    sampler2D texture : TEXUNIT5;
-};
-
-struct prev_5
-{
-    sampler2D texture : TEXUNIT6;
-};
-
-struct prev_6
-{
-    sampler2D texture : TEXUNIT7;
-};
-
 struct colors
 {
     fixed4 color_0 : TEXCOORD2;
@@ -93,7 +78,7 @@ void main_vertex( float4 position      			: POSITION,
 		  out float2 oOutCoord			: TEXCOORD1,
   		  uniform float4x4 modelViewProj,
   		  uniform input IN,
-		  uniform sampler2D COLOR_PALETTE	: TEXUNIT7, 
+		  uniform sampler2D COLOR_PALETTE	: TEXUNIT5, 
 		  out colors oColors )
 {
     oPosition = mul(modelViewProj, position);
@@ -139,10 +124,7 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 		      uniform prev_1 PREV1, 
 		      uniform prev_2 PREV2, 
 		      uniform prev_3 PREV3, 
-		      uniform prev_4 PREV4, 
-		      uniform prev_5 PREV5, 
-		      uniform prev_6 PREV6,
-		      uniform sampler2D COLOR_PALETTE	: TEXUNIT7, 
+		      uniform sampler2D COLOR_PALETTE	: TEXUNIT5, 
 		      in colors COLORS ) : COLOR
 {
   //sample the input textures
