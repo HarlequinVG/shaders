@@ -66,7 +66,6 @@ void main_vertex( float4 position      			: POSITION,
     oPosition = mul(modelViewProj, position);
     oTexCoord = texCoord;
 
-    //float pixel = 0.5 / IN.output_size;
     float texel = 1.0 / IN.texture_size;
     oBlurCoords = blur_coords 
     (

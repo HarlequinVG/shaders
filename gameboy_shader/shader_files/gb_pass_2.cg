@@ -1,0 +1,97 @@
+///////////////////////////////////////////////////////////////////////////
+//                                                                       //
+// Gameboy Classic Shader                                                //
+//                                                                       //
+// Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
+//                                                                       //
+// This program is free software: you can redistribute it and/or modify  //
+// it under the terms of the GNU General Public License as published by  //
+// the Free Software Foundation, either version 3 of the License, or     //
+// (at your option) any later version.                                   //
+//                                                                       //
+// This program is distributed in the hope that it will be useful,       //
+// but WITHOUT ANY WARRANTY; without even the implied warranty of        //
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         //
+// GNU General Public License for more details.                          //
+//                                                                       //
+// You should have received a copy of the GNU General Public License     //
+// along with this program.  If not, see <http://www.gnu.org/licenses/>. //
+//                                                                       //
+///////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//config                                                                                                                                  //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define shadow_offset_x 1.0	//shadow offset along the x axis - larger values shift right
+#define shadow_offset_y 1.0	//shadow offset along the y asis - larger values shift down
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//structs                                                                                                                                 //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct input
+{
+    float2 video_size;
+    float2 texture_size;
+    float2 output_size;
+    float frame_count;
+    sampler2D texture : TEXUNIT0;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//vertex shader                                                                                                                           //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void main_vertex( float4 position      			: POSITION,
+  		  out float4 oPosition 			: POSITION,
+  		  float2 texCoord      			: TEXCOORD0,
+  		  out float2 oTexCoord 			: TEXCOORD0,
+  		  uniform float4x4 modelViewProj )
+{
+    oPosition = mul(modelViewProj, position);
+    oTexCoord = texCoord;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//fragment definitions                                                                                                                    //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define shadow_offset (float2(-shadow_offset_x, -shadow_offset_y) * texel)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//fragment functions                                                                                                                      //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+float4 gaussian_blur(sampler2D texture, float2 tex_coord, float2 texel, input IN)
+{
+    float2 lower_bound = float2(0.0);
+    float2 upper_bound = texel * (IN.output_size - 1.0);
+
+    float offsets[5] = float[](0.0, 1.0, 2.0, 3.0, 4.0);
+    float weights[5] = float[](0.22702703, 0.19459459, 0.12162162, 0.05405405, 0.01621621);	//calculated from pascal triangle, normalized to 1 to prevent darkening
+
+    float4 out_color = tex2D(texture, clamp(tex_coord, lower_bound, upper_bound)) * weights[0];
+
+    for (int i = 1; i < 5; i++) 
+    {
+	out_color += tex2D(texture, clamp(tex_coord + float2(offsets[i] * texel.x, 0.0), lower_bound, upper_bound)) * weights[i];
+	out_color += tex2D(texture, clamp(tex_coord - float2(offsets[i] * texel.x, 0.0), lower_bound, upper_bound)) * weights[i];
+    }
+
+    return out_color;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//fragment shader                                                                                                                         //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+float4 main_fragment( float2 texCoord		: TEXCOORD0, 
+		      uniform input IN )	: COLOR
+{
+    float2 texel = float2(ddx(texCoord.x), ddy(texCoord.y));
+
+    return gaussian_blur(IN.texture, 
+			 texCoord + (float2(-shadow_offset_x, -shadow_offset_y) * texel),	//apply shadow offset
+			 texel, IN);
+}
