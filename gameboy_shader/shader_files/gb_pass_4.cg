@@ -23,8 +23,13 @@
 //config                                                                                                                                  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define shadow_offset_x 1.0	//shadow offset along the x axis - larger values shift right
-#define shadow_offset_y 1.0	//shadow offset along the y asis - larger values shift down
+//intended for testing purposes only - you'll likely get better picture quality by changing settings or changing palette/background files than enabling these
+//#define SCENE_ONLY			//shows scene only (no shadows or background)
+//#define SHADOWS_ONLY			//shows shadows only (no scene or background)
+//#define BACKGROUND_ONLY		//shows background only (no scene or shadows)
+//#define SCENE_AND_SHADOWS		//shows scene blended with shadows (no background image)
+//#define SCENE_AND_BACKGROUND		//shows scene blended with background (no shadows)
+//#define SHADOWS_AND_BACKGROUND	//show shadows blended with background image (no scene)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //structs                                                                                                                                 //
@@ -39,6 +44,11 @@ struct input
     sampler2D texture : TEXUNIT0;
 };
 
+struct pass_2
+{
+    sampler2D texture : TEXUNIT1;
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //vertex shader                                                                                                                           //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -47,45 +57,76 @@ void main_vertex( float4 position      			: POSITION,
   		  out float4 oPosition 			: POSITION,
   		  float2 texCoord      			: TEXCOORD0,
   		  out float2 oTexCoord 			: TEXCOORD0,
-  		  uniform float4x4 modelViewProj )
+  		  uniform float4x4 modelViewProj,
+  		  uniform input IN )
 {
     oPosition = mul(modelViewProj, position);
     oTexCoord = texCoord;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//fragment functions                                                                                                                      //
+//fragment definitions                                                                                                                    //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-float4 gaussian_blur(sampler2D texture, float2 tex_coord, float2 texel, input IN)
-{
-    float2 lower_bound = float2(0.0);
-    float2 upper_bound = texel * (IN.output_size - 1.0);
-
-    float offsets[5] = float[](0.0, 1.0, 2.0, 3.0, 4.0);
-    float weights[5] = float[](0.22702703, 0.19459459, 0.12162162, 0.05405405, 0.01621621);	//calculated from pascal triangle, normalized to 1 to prevent darkening
-
-    float4 out_color = tex2D(texture, clamp(tex_coord, lower_bound, upper_bound)) * weights[0];
-
-    for (int i = 1; i < 5; i++) 
-    {
-	out_color += tex2D(texture, clamp(tex_coord + float2(offsets[i] * texel.x, 0.0), lower_bound, upper_bound)) * weights[i];
-	out_color += tex2D(texture, clamp(tex_coord - float2(offsets[i] * texel.x, 0.0), lower_bound, upper_bound)) * weights[i];
-    }
-
-    return out_color;
-}
+#define bg_tint_coordinate float2(0.5, 0.125)	//coordinate of the transparent tint from the color palette file
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //fragment shader                                                                                                                         //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-float4 main_fragment( float2 texCoord		: TEXCOORD0, 
-		      uniform input IN )	: COLOR
+float4 main_fragment( float2 texCoord        		: TEXCOORD0, 
+		      uniform sampler2D BACKGROUND	: TEXUNIT2,
+		      uniform sampler2D COLOR_PALETTE	: TEXUNIT3,
+		      uniform input IN,
+		      uniform pass_2 PASS2 )     	: COLOR
 {
-    float2 texel = float2(ddx(texCoord.x), ddy(texCoord.y));
+  //sample all the textures going into the final output
+    float4 scene_texture = tex2D(PASS2.texture, texCoord);
+    float4 shadow_texture = tex2D(IN.texture, texCoord);
+    float4 bg_texture = tex2D(BACKGROUND, texCoord) * float4(tex2D(COLOR_PALETTE, bg_tint_coordinate).rgb, 0.0);
 
-    return gaussian_blur(IN.texture, 
-			 texCoord + (float2(-shadow_offset_x, -shadow_offset_y) * texel),	//apply shadow offset
-			 texel, IN);
+  //alpha blend the shadows with the background image
+    float4 shadow_modified_color = shadow_texture * shadow_texture.a;
+    float shadow_modified_alpha = 1.0 - shadow_texture.a;
+    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);		//form of bg_texture = (shadow_texture * shadow_texture.a) + (bg_texture * (1.0 - shadow_texture.a));
+
+  //darkens the shadow on the background - higher quality than directly increasing the shadow's alpha values (ie. shadow_texture.a *= 1.2) but there must be a better way...
+    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
+    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
+    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
+    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
+    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+//debugging                                                                                              //
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifdef SCENE_ONLY
+    return scene_texture;
+#endif
+
+#ifdef SHADOWS_ONLY
+    return shadow_texture;
+#endif
+
+#ifdef BACKGROUND_ONLY
+    return tex2D(BACKGROUND, texCoord) * float4(tex2D(COLOR_PALETTE, bg_tint_coordinate).rgb, 0.0);
+#endif
+
+#ifdef SCENE_AND_SHADOWS
+    return (scene_texture * scene_texture.a) + (shadow_texture * (1 - scene_texture.a));
+#endif
+
+#ifdef SCENE_AND_BACKGROUND
+    return (scene_texture * scene_texture.a) + 
+	   ((tex2D(BACKGROUND, texCoord) * float4(tex2D(COLOR_PALETTE, bg_tint_coordinate).rgb, 0.0)) * (1 - scene_texture.a));
+#endif
+
+#ifdef SHADOWS_AND_BACKGROUND
+    return bg_texture;
+#endif
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  //alpha blend the scene with the shadowed background image and return
+    return (scene_texture * scene_texture.a) + (bg_texture * (1 - scene_texture.a));
 }

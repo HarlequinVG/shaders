@@ -23,8 +23,8 @@
 //config                                                                                                                                  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define blur_factor 0.4		//blending factor of previous frames for motion blur (0-1, lower is more transparent)
-#define blur_frames 2		//number of previous frames to include in motion blur (0-4)
+#define blur_factor 0.33		//blending factor of previous frames for motion blur (0-1, lower is more transparent)
+#define blur_frames 3		//number of previous frames to include in motion blur (0-4)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //structs                                                                                                                                 //
@@ -154,11 +154,11 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 
     for (int i = 0; i < blur_frames; i++)
     {
-	//fixed4 prev_color = color_array[color_indices[i]] * 							//retrieve the colorized value...
-	//		    fixed4(fixed3(1.0), pow(fixed(blur_factor), i + 1.0) * (1.0 - out_color.a));	//...then apply time-corrected blur factor and force current frame precedence for opaque pixels
+	fixed4 prev_color = color_array[color_indices[i]] * 							//retrieve the colorized value...
+			    fixed4(fixed3(1.0), pow(fixed(blur_factor), i + 1.0) * (1.0 - out_color.a));	//...then apply time-corrected blur factor and force current frame precedence for opaque pixels
 
-	fixed4 prev_color = color_array[color_indices[i]] * 							
-			    fixed4(fixed3(1.0), (1.0 - (blur_factor * (i + 1.0))) * (1.0 - out_color.a));	//subtractive method
+	//fixed4 prev_color = color_array[color_indices[i]] * 							
+	//		    fixed4(fixed3(1.0), (1.0 - (blur_factor * (i + 1.0))) * (1.0 - out_color.a));	//subtractive fading
 
 	out_color = fixed4( (prev_color * prev_color.a) + (out_color * (1 - prev_color.a)).rgb, 		//alpha blend with the output color...
 			    max(out_color.a, prev_color.a) );							//...and set new alpha value for future blending
