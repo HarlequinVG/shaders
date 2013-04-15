@@ -1,0 +1,190 @@
+///////////////////////////////////////////////////////////////////////////
+//                                                                       //
+// Gameboy Classic Shader                                                //
+//                                                                       //
+// Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
+//                                                                       //
+// This program is free software: you can redistribute it and/or modify  //
+// it under the terms of the GNU General Public License as published by  //
+// the Free Software Foundation, either version 3 of the License, or     //
+// (at your option) any later version.                                   //
+//                                                                       //
+// This program is distributed in the hope that it will be useful,       //
+// but WITHOUT ANY WARRANTY; without even the implied warranty of        //
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         //
+// GNU General Public License for more details.                          //
+//                                                                       //
+// You should have received a copy of the GNU General Public License     //
+// along with this program.  If not, see <http://www.gnu.org/licenses/>. //
+//                                                                       //
+///////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//config                                                                                                                                  //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define blur_factor 0.3		//blending factor of previous frames for motion blur (0-1, lower is more transparent)
+#define blur_frames 3		//number of previous frames to include in motion blur (0-4)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//structs                                                                                                                                 //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct input
+{
+    float2 video_size;
+    float2 texture_size;
+    float2 output_size;
+    float frame_count;
+    sampler2D texture : TEXUNIT0;
+};
+
+struct prev_0
+{
+    sampler2D texture : TEXUNIT1;
+};
+
+struct prev_1
+{
+    sampler2D texture : TEXUNIT2;
+};
+
+struct prev_2
+{
+    sampler2D texture : TEXUNIT3;
+};
+
+struct prev_3
+{
+    sampler2D texture : TEXUNIT4;
+};
+
+struct prev_4
+{
+    sampler2D texture : TEXUNIT5;
+};
+
+struct prev_5
+{
+    sampler2D texture : TEXUNIT6;
+};
+
+struct prev_6
+{
+    sampler2D texture : TEXUNIT7;
+};
+
+struct colors
+{
+    fixed4 color_0 : TEXCOORD2;
+    fixed4 color_1 : TEXCOORD3;
+    fixed4 color_2 : TEXCOORD4;
+    fixed4 color_3 : TEXCOORD5;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//vertex shader                                                                                                                           //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void main_vertex( float4 position      			: POSITION,
+  		  out float4 oPosition 			: POSITION,
+  		  float2 texCoord      			: TEXCOORD0,
+  		  out float2 oTexCoord 			: TEXCOORD0,
+		  out float2 oOutCoord			: TEXCOORD1,
+  		  uniform float4x4 modelViewProj,
+  		  uniform input IN,
+		  uniform sampler2D COLOR_PALETTE	: TEXUNIT7, 
+		  out colors oColors )
+{
+    oPosition = mul(modelViewProj, position);
+    oTexCoord = texCoord; 								//input texCoords from RetroArch range from [0, IN.video_size/IN.texture_size]
+    oOutCoord = texCoord * (IN.texture_size / IN.video_size) * IN.output_size;		//output texel coordinate in range [0, IN.output_size]
+
+  //sample the user's color palette now so we don't have to in the fragment shader...
+    oColors = colors (
+	fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.875)).rgb, 1.0),	//dark
+	fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.625)).rgb, 1.0),	//medium
+	fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.375)).rgb, 1.0),	//light
+	fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.125)).rgb, 0.0)	//transparent
+    );
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//fragment definitions                                                                                                                    //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define dot_size IN.output_size.x / IN.video_size.x	//size of each "dot" in the dot matrix - generally IN.video_size times integer scale of the output
+#define dot_padding 1.0					//width of the "grid" between dots in the matrix (might be problems bluring in later passes if >1)
+#define dot_offset 1.0					//0 - grid lines on left and top of screen, 1 - right and bottom (haven't set up the blur filter to deal with this yet, just leave at 1)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//fragment functions                                                                                                                      //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int overlay_matrix(float2 texel_coord, input IN)	//returns 0 if pixel is on a dot, 1 if pixel is in padding region
+{
+    float2 tex_mod = mod(floor(texel_coord + dot_offset), dot_size);
+    return (tex_mod.x < dot_padding || tex_mod.y < dot_padding);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//fragment shader                                                                                                                         //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+float4 main_fragment( float2 texCoord        		: TEXCOORD0, 
+		      float2 outCoord			: TEXCOORD1,
+		      uniform input IN,
+		      uniform prev_0 PREV, 
+		      uniform prev_1 PREV1, 
+		      uniform prev_2 PREV2, 
+		      uniform prev_3 PREV3, 
+		      uniform prev_4 PREV4, 
+		      uniform prev_5 PREV5, 
+		      uniform prev_6 PREV6,
+		      uniform sampler2D COLOR_PALETTE	: TEXUNIT7, 
+		      in colors COLORS ) : COLOR
+{
+  //sample the input textures
+    fixed4 out_color = tex2D(IN.texture, texCoord);
+    fixed4 color_array[4] = fixed4[](COLORS.color_0, COLORS.color_1, COLORS.color_2, COLORS.color_3);	//why is this not working if the color palette uniform is removed...?
+
+  //input grayscale values:
+  //0.000 black - 0.333 medium gray - 0.667 light gray - 1.000 white
+  //multiply grayscale value by 3 to obtain int value in range [0, 3], acts as index for arrays storing custom palatte UV coordinates and alpha value
+
+    int color_index = floor(out_color.r * 3);	//D3D is doing something weird here, if a color is sampled from a texture and used as an index value (as in the next line), using the result of that will cause a crash
+    out_color = color_array[color_index];	//D3D has problem with color_index used here, just use OpenGL for now instead...
+
+
+  //repeat value-index mapping procedure for previous 4 frames for use in motion blur
+
+    int4 color_indices = int4( tex2D(PREV.texture,  texCoord).r * 3, 
+			       tex2D(PREV1.texture, texCoord).r * 3, 
+			       tex2D(PREV2.texture, texCoord).r * 3, 
+			       tex2D(PREV3.texture, texCoord).r * 3 );
+
+
+  //look up color and alpha values for up to 4 previous frames
+  //alpha value is lightened each step backwards by blur_factor
+  //standard alpha blending to merge previous frames with current output
+
+    for (int i = 0; i < blur_frames; i++)
+    {
+	fixed4 prev_color = color_array[color_indices[i]] * 						//retrieve the colorized value...
+			    fixed4(fixed3(1.0), pow(fixed(blur_factor), i + 1) * (1 - out_color.a));	//...then apply time-corrected blur factor and force current frame precedence for opaque pixels
+
+	out_color = fixed4( (prev_color * prev_color.a) + (out_color * (1 - prev_color.a)).rgb, 	//alpha blend with the output color...
+			    max(out_color.a, prev_color.a) );						//...and set new alpha value for future blending
+    }
+
+
+  //add the grid overlay for the dot matrix by coloring grid pixels white
+
+    int on_grid = overlay_matrix(outCoord, IN);
+    out_color = (out_color * (1.0 - on_grid)) + fixed4(on_grid * color_array[3]);
+
+
+  //return
+    return out_color;
+}
