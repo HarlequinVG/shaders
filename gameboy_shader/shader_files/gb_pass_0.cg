@@ -23,8 +23,8 @@
 //config                                                                                                                                  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define blur_factor 0.3		//blending factor of previous frames for motion blur (0-1, lower is more transparent)
-#define blur_frames 3		//number of previous frames to include in motion blur (0-4)
+#define blur_factor 0.4		//blending factor of previous frames for motion blur (0-1, lower is more transparent)
+#define blur_frames 2		//number of previous frames to include in motion blur (0-4)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //structs                                                                                                                                 //
@@ -82,7 +82,7 @@ void main_vertex( float4 position      			: POSITION,
 		  out colors oColors )
 {
     oPosition = mul(modelViewProj, position);
-    oTexCoord = texCoord; 								//input texCoords from RetroArch range from [0, IN.video_size/IN.texture_size]
+    oTexCoord = texCoord; 								//input texel coordinate in range [0, IN.video_size/IN.texture_size]
     oOutCoord = texCoord * (IN.texture_size / IN.video_size) * IN.output_size;		//output texel coordinate in range [0, IN.output_size]
 
   //sample the user's color palette now so we don't have to in the fragment shader...
@@ -131,6 +131,7 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
     fixed4 out_color = tex2D(IN.texture, texCoord);
     fixed4 color_array[4] = fixed4[](COLORS.color_0, COLORS.color_1, COLORS.color_2, COLORS.color_3);	//why is this not working if the color palette uniform is removed...?
 
+
   //input grayscale values:
   //0.000 black - 0.333 medium gray - 0.667 light gray - 1.000 white
   //multiply grayscale value by 3 to obtain int value in range [0, 3], acts as index for arrays storing custom palatte UV coordinates and alpha value
@@ -153,11 +154,14 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 
     for (int i = 0; i < blur_frames; i++)
     {
-	fixed4 prev_color = color_array[color_indices[i]] * 						//retrieve the colorized value...
-			    fixed4(fixed3(1.0), pow(fixed(blur_factor), i + 1) * (1 - out_color.a));	//...then apply time-corrected blur factor and force current frame precedence for opaque pixels
+	//fixed4 prev_color = color_array[color_indices[i]] * 							//retrieve the colorized value...
+	//		    fixed4(fixed3(1.0), pow(fixed(blur_factor), i + 1.0) * (1.0 - out_color.a));	//...then apply time-corrected blur factor and force current frame precedence for opaque pixels
 
-	out_color = fixed4( (prev_color * prev_color.a) + (out_color * (1 - prev_color.a)).rgb, 	//alpha blend with the output color...
-			    max(out_color.a, prev_color.a) );						//...and set new alpha value for future blending
+	fixed4 prev_color = color_array[color_indices[i]] * 							
+			    fixed4(fixed3(1.0), (1.0 - (blur_factor * (i + 1.0))) * (1.0 - out_color.a));	//subtractive method
+
+	out_color = fixed4( (prev_color * prev_color.a) + (out_color * (1 - prev_color.a)).rgb, 		//alpha blend with the output color...
+			    max(out_color.a, prev_color.a) );							//...and set new alpha value for future blending
     }
 
 
