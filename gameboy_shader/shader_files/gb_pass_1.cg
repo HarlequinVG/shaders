@@ -43,12 +43,12 @@ struct input
 
 struct blur_coords
 {
-    float2 tex_coord_1 : TEXCOORD1;
-    float2 tex_coord_2 : TEXCOORD2;
-    float2 tex_coord_3 : TEXCOORD3;
-    float2 tex_coord_4 : TEXCOORD4;
-    float2 lower_bound : TEXCOORD5;
-    float2 upper_bound : TEXCOORD6;
+    fixed2 tex_coord_1 : TEXCOORD1;
+    fixed2 tex_coord_2 : TEXCOORD2;
+    fixed2 tex_coord_3 : TEXCOORD3;
+    fixed2 tex_coord_4 : TEXCOORD4;
+    fixed2 lower_bound : TEXCOORD5;
+    fixed2 upper_bound : TEXCOORD6;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -66,14 +66,14 @@ void main_vertex( float4 position      			: POSITION,
     oPosition = mul(modelViewProj, position);
     oTexCoord = texCoord;
 
-    float texel = 1.0 / IN.texture_size;
+    fixed texel = 1.0 / IN.texture_size;
     oBlurCoords = blur_coords 
     (
-	texCoord + float2(0.0, texel),
-	texCoord + float2(0.0, -texel),
-	texCoord + float2(texel, 0.0),
-	texCoord + float2(-texel, 0.0),
-	float2(0.0),
+	texCoord + fixed2(0.0, texel),
+	texCoord + fixed2(0.0, -texel),
+	texCoord + fixed2(texel, 0.0),
+	texCoord + fixed2(-texel, 0.0),
+	fixed2(0.0),
 	texel * (IN.output_size - 2.0)
     );
 
@@ -89,7 +89,7 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 {
   //sample input texture
 
-    float4 out_color = tex2D(IN.texture, texCoord);
+    fixed4 out_color = tex2D(IN.texture, texCoord);
 
 
   //obtain all the neighboring texels and clamp to prevent out of bounds sampling
@@ -99,20 +99,20 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
     blur_coords.tex_coord_3 = clamp(blur_coords.tex_coord_3, blur_coords.lower_bound, blur_coords.upper_bound);
     blur_coords.tex_coord_4 = clamp(blur_coords.tex_coord_4, blur_coords.lower_bound, blur_coords.upper_bound);
 
-    float2 tex_coord_d1 = clamp( float2(blur_coords.tex_coord_3.x, blur_coords.tex_coord_1.y), blur_coords.lower_bound, blur_coords.upper_bound );
-    float2 tex_coord_d2 = clamp( float2(blur_coords.tex_coord_4.x, blur_coords.tex_coord_1.y), blur_coords.lower_bound, blur_coords.upper_bound );
-    float2 tex_coord_d3 = clamp( float2(blur_coords.tex_coord_3.x, blur_coords.tex_coord_2.y), blur_coords.lower_bound, blur_coords.upper_bound );
-    float2 tex_coord_d4 = clamp( float2(blur_coords.tex_coord_4.x, blur_coords.tex_coord_2.y), blur_coords.lower_bound, blur_coords.upper_bound );
+    fixed2 tex_coord_d1 = clamp( fixed2(blur_coords.tex_coord_3.x, blur_coords.tex_coord_1.y), blur_coords.lower_bound, blur_coords.upper_bound );
+    fixed2 tex_coord_d2 = clamp( fixed2(blur_coords.tex_coord_4.x, blur_coords.tex_coord_1.y), blur_coords.lower_bound, blur_coords.upper_bound );
+    fixed2 tex_coord_d3 = clamp( fixed2(blur_coords.tex_coord_3.x, blur_coords.tex_coord_2.y), blur_coords.lower_bound, blur_coords.upper_bound );
+    fixed2 tex_coord_d4 = clamp( fixed2(blur_coords.tex_coord_4.x, blur_coords.tex_coord_2.y), blur_coords.lower_bound, blur_coords.upper_bound );
 
-    float4 adjacent_texel_1 = tex2D(IN.texture, blur_coords.tex_coord_1);
-    float4 adjacent_texel_2 = tex2D(IN.texture, blur_coords.tex_coord_2);
-    float4 adjacent_texel_3 = tex2D(IN.texture, blur_coords.tex_coord_3);
-    float4 adjacent_texel_4 = tex2D(IN.texture, blur_coords.tex_coord_4);
+    fixed4 adjacent_texel_1 = tex2D(IN.texture, blur_coords.tex_coord_1);
+    fixed4 adjacent_texel_2 = tex2D(IN.texture, blur_coords.tex_coord_2);
+    fixed4 adjacent_texel_3 = tex2D(IN.texture, blur_coords.tex_coord_3);
+    fixed4 adjacent_texel_4 = tex2D(IN.texture, blur_coords.tex_coord_4);
 
-    float4 diagonal_texel_1 = tex2D(IN.texture, tex_coord_d1);
-    float4 diagonal_texel_2 = tex2D(IN.texture, tex_coord_d2);
-    float4 diagonal_texel_3 = tex2D(IN.texture, tex_coord_d3);
-    float4 diagonal_texel_4 = tex2D(IN.texture, tex_coord_d4);
+    fixed4 diagonal_texel_1 = tex2D(IN.texture, tex_coord_d1);
+    fixed4 diagonal_texel_2 = tex2D(IN.texture, tex_coord_d2);
+    fixed4 diagonal_texel_3 = tex2D(IN.texture, tex_coord_d3);
+    fixed4 diagonal_texel_4 = tex2D(IN.texture, tex_coord_d4);
 
 
   //simple blur for softening sharp changes in color and alpha values

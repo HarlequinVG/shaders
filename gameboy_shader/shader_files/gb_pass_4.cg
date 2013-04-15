@@ -81,16 +81,23 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 		      uniform pass_2 PASS2 )     	: COLOR
 {
   //sample all the textures going into the final output
-    float4 scene_texture = tex2D(PASS2.texture, texCoord);
-    float4 shadow_texture = tex2D(IN.texture, texCoord);
-    float4 bg_texture = tex2D(BACKGROUND, texCoord) * float4(tex2D(COLOR_PALETTE, bg_tint_coordinate).rgb, 0.0);
+
+    fixed4 scene_texture = tex2D(PASS2.texture, texCoord);
+    fixed4 shadow_texture = tex2D(IN.texture, texCoord);
+    fixed4 bg_texture = tex2D(BACKGROUND, texCoord) * fixed4(tex2D(COLOR_PALETTE, bg_tint_coordinate).rgb, 0.0);
+
 
   //alpha blend the shadows with the background image
-    float4 shadow_modified_color = shadow_texture * shadow_texture.a;
-    float shadow_modified_alpha = 1.0 - shadow_texture.a;
+
+    fixed4 shadow_modified_color = shadow_texture * shadow_texture.a;
+    fixed shadow_modified_alpha = 1.0 - shadow_texture.a;
     bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);		//form of bg_texture = (shadow_texture * shadow_texture.a) + (bg_texture * (1.0 - shadow_texture.a));
 
+
   //darkens the shadow on the background - higher quality than directly increasing the shadow's alpha values (ie. shadow_texture.a *= 1.2) but there must be a better way...
+
+    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
+    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
     bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
     bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
     bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
@@ -109,7 +116,7 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 #endif
 
 #ifdef BACKGROUND_ONLY
-    return tex2D(BACKGROUND, texCoord) * float4(tex2D(COLOR_PALETTE, bg_tint_coordinate).rgb, 0.0);
+    return tex2D(BACKGROUND, texCoord) * fixed4(tex2D(COLOR_PALETTE, bg_tint_coordinate).rgb, 0.0);
 #endif
 
 #ifdef SCENE_AND_SHADOWS
@@ -118,7 +125,7 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 
 #ifdef SCENE_AND_BACKGROUND
     return (scene_texture * scene_texture.a) + 
-	   ((tex2D(BACKGROUND, texCoord) * float4(tex2D(COLOR_PALETTE, bg_tint_coordinate).rgb, 0.0)) * (1 - scene_texture.a));
+	   ((tex2D(BACKGROUND, texCoord) * fixed4(tex2D(COLOR_PALETTE, bg_tint_coordinate).rgb, 0.0)) * (1 - scene_texture.a));
 #endif
 
 #ifdef SHADOWS_AND_BACKGROUND
@@ -128,5 +135,6 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   //alpha blend the scene with the shadowed background image and return
+
     return (scene_texture * scene_texture.a) + (bg_texture * (1 - scene_texture.a));
 }

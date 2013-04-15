@@ -85,7 +85,9 @@ void main_vertex( float4 position      			: POSITION,
     oTexCoord = texCoord; 								//input texel coordinate in range [0, IN.video_size/IN.texture_size]
     oOutCoord = texCoord * (IN.texture_size / IN.video_size) * IN.output_size;		//output texel coordinate in range [0, IN.output_size]
 
+
   //sample the user's color palette now so we don't have to in the fragment shader...
+
     oColors = colors (
 	fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.875)).rgb, 1.0),	//dark
 	fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.625)).rgb, 1.0),	//medium
@@ -128,6 +130,7 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 		      in colors COLORS ) : COLOR
 {
   //sample the input textures
+
     fixed4 out_color = tex2D(IN.texture, texCoord);
     fixed4 color_array[4] = fixed4[](COLORS.color_0, COLORS.color_1, COLORS.color_2, COLORS.color_3);	//why is this not working if the color palette uniform is removed...?
 

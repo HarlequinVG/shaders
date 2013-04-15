@@ -57,20 +57,20 @@ void main_vertex( float4 position      			: POSITION,
 //fragment functions                                                                                                                      //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-float4 gaussian_blur(sampler2D texture, float2 tex_coord, float2 texel, input IN)
+fixed4 gaussian_blur(sampler2D texture, float2 tex_coord, fixed2 texel, input IN)
 {
-    float2 lower_bound = float2(0.0);
-    float2 upper_bound = texel * (IN.output_size - 1.0);
+    fixed2 lower_bound = float2(0.0);
+    fixed2 upper_bound = texel * (IN.output_size - 1.0);
 
     float offsets[5] = float[](0.0, 1.0, 2.0, 3.0, 4.0);
-    float weights[5] = float[](0.22702703, 0.19459459, 0.12162162, 0.05405405, 0.01621621);	//calculated from pascal triangle, normalized to 1 to prevent darkening
+    fixed weights[5] = fixed[](0.22702703, 0.19459459, 0.12162162, 0.05405405, 0.01621621);	//calculated from pascal triangle, normalized to 1 to prevent darkening
 
-    float4 out_color = tex2D(texture, clamp(tex_coord, lower_bound, upper_bound)) * weights[0];
+    fixed4 out_color = tex2D(texture, clamp(tex_coord, lower_bound, upper_bound)) * weights[0];
 
     for (int i = 1; i < 5; i++) 
     {
-	out_color += tex2D(texture, clamp(tex_coord + float2(offsets[i] * texel.x, 0.0), lower_bound, upper_bound)) * weights[i];
-	out_color += tex2D(texture, clamp(tex_coord - float2(offsets[i] * texel.x, 0.0), lower_bound, upper_bound)) * weights[i];
+	out_color += tex2D(texture, clamp(tex_coord + fixed2(offsets[i] * texel.x, 0.0), lower_bound, upper_bound)) * weights[i];
+	out_color += tex2D(texture, clamp(tex_coord - fixed2(offsets[i] * texel.x, 0.0), lower_bound, upper_bound)) * weights[i];
     }
 
     return out_color;
@@ -83,9 +83,9 @@ float4 gaussian_blur(sampler2D texture, float2 tex_coord, float2 texel, input IN
 float4 main_fragment( float2 texCoord		: TEXCOORD0, 
 		      uniform input IN )	: COLOR
 {
-    float2 texel = float2(ddx(texCoord.x), ddy(texCoord.y));
+    fixed2 texel = fixed2(ddx(texCoord.x), ddy(texCoord.y));
 
     return gaussian_blur(IN.texture, 
-			 texCoord + (float2(-shadow_offset_x, -shadow_offset_y) * texel),	//apply shadow offset
+			 texCoord + (fixed2(-shadow_offset_x, -shadow_offset_y) * texel),	//apply shadow offset
 			 texel, IN);
 }
