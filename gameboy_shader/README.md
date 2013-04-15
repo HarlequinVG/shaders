@@ -2,7 +2,9 @@ Gameboy Shader for RetroArch
 =======
 Download the files keeping the directory structure intact. Load the gb_shader.cgp file found in the /gameboy_shader/
 directory to apply the shader. Under RetroArch's video settings, ensure that video driver is set to OpenGL, integer
-scaling is selected, and that aspect ratio is set to auto.
+scaling is selected, and that aspect ratio is set to auto. Additionally, this shader requires a Gameboy emulation core
+which outputs grayscale video - it will not function with a core that emulates GBC automatic colorization of classic
+Gameboy games.
 
 Palette and background images can be changes by editing or replacing the associated files found in the 
 /gameboy_shader/resources/ directory. Various other settings can be changed by directly editing variables listed under
