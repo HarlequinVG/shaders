@@ -98,7 +98,7 @@ void main_vertex( float4 position      			: POSITION,
 
 int overlay_matrix(float2 texel_coord, input IN)	//returns 0 if pixel is on a dot, 1 if pixel is in padding region
 {
-    float2 tex_mod = mod(floor(texel_coord + dot_offset), dot_size);
+    float2 tex_mod = mod(texel_coord + dot_offset, dot_size);
     return (min(tex_mod.x, tex_mod.y) < dot_padding);
 }
 
@@ -160,22 +160,10 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
     //float2 tex_mod = mod(floor(texCoord * (IN.texture_size / IN.video_size) * IN.output_size), IN.output_size.x / IN.video_size.x);
     //float2 tex_mod = mod(floor(outCoord + dot_offset), dot_size);
 
-//if (IN.texture_size.x == 256) { return float4(1.0, 0.0, 0.0, 1.0); }
-//if (IN.output_size.x == 1120) { return float4(0.0, 1.0, 0.0, 1.0); }
-//if (IN.video_size.x == 160) { return float4(0.0, 0.0, 1.0, 1.0); }
-
-//if (texCoord.x < 0.3125) { return float4(1.0, 1.0, 0.0, 1.0); }
-
-//if (mod(texCoord.x, 0.05) < 0.01) { return float4(0.0, 1.0, 1.0, 1.0); }
+//float2 tex_mod = mod(texCoord * (IN.texture_size / IN.video_size) * IN.output_size, 7.0);
 
 
-
-//float2 tex_mod = float2(0.1, 1.0);
-//float2 tex_mod = mod(float2(5, 7), 5);
-float2 tex_mod = mod(texCoord * (IN.texture_size / IN.video_size) * IN.output_size, 7.0);
-
-
-
+/*
 float on_grid = 0.0;
 if (tex_mod.x < 1.0) { on_grid = 1.0; }
 
@@ -185,7 +173,10 @@ if (tex_mod.x < 1.0) { on_grid = 1.0; }
         //out_color = float4(tex2D(COLOR_PALETTE, float2(0.5, 0.125)).rgb, 0.0);
 	out_color = float4(1.0);
     }
+*/
 
+    int on_grid = overlay_matrix(outCoord, IN);
+    out_color = (out_color * (1.0 - on_grid)) + fixed4(on_grid * fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.125)).rgb, 0.0));
 
 
   //return
