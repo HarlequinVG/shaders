@@ -171,12 +171,13 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 
 
 //float2 tex_mod = float2(0.1, 1.0);
-float2 tex_mod = mod(float2(5, 7), 5);
+//float2 tex_mod = mod(float2(5, 7), 5);
+float2 tex_mod = mod(texCoord * (IN.texture_size / IN.video_size), 0.1);
 
 
 
 float on_grid = 0.0;
-if (tex_mod.x < 1.0) { on_grid = 1.0; }
+if (tex_mod.x < 0.01) { on_grid = 1.0; }
 
     //float on_grid = (min(tex_mod.x, tex_mod.y) < 1.0);
 
