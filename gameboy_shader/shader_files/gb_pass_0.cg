@@ -164,7 +164,9 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 //if (IN.output_size.x == 1120) { return float4(0.0, 1.0, 0.0, 1.0); }
 //if (IN.video_size.x == 160) { return float4(0.0, 0.0, 1.0, 1.0); }
 
-if (texCoord.x < 0.3125) { return float4(1.0, 1.0, 0.0, 1.0); }
+//if (texCoord.x < 0.3125) { return float4(1.0, 1.0, 0.0, 1.0); }
+
+if (mod(texCoord.x, 0.05) < 0.01) { return float4(0.0, 1.0, 1.0, 1.0); }
 
 float on_grid = 0.0;
 if (tex_mod.x < 1.0) { on_grid = 1.0; }
