@@ -24,7 +24,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //intended for testing purposes only - you'll likely get better picture quality by changing settings or changing palette/background files than enabling these
-#define SCENE_ONLY			//shows scene only (no shadows or background)
+//#define SCENE_ONLY			//shows scene only (no shadows or background)
 //#define SHADOWS_ONLY			//shows shadows only (no scene or background)
 //#define BACKGROUND_ONLY		//shows background only (no scene or shadows)
 //#define SCENE_AND_SHADOWS		//shows scene blended with shadows (no background image)
