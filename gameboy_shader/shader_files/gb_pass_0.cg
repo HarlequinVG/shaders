@@ -157,7 +157,7 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 
   //add the grid overlay for the dot matrix by coloring grid pixels white
 
-    float2 tex_mod = mod(floor(texCoord * (IN.texture_size / IN.video_size) * IN.output_size), IN.output_size.x / IN.video_size.x);
+    //float2 tex_mod = mod(floor(texCoord * (IN.texture_size / IN.video_size) * IN.output_size), IN.output_size.x / IN.video_size.x);
     //float2 tex_mod = mod(floor(outCoord + dot_offset), dot_size);
 
 //if (IN.texture_size.x == 256) { return float4(1.0, 0.0, 0.0, 1.0); }
@@ -166,7 +166,9 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 
 //if (texCoord.x < 0.3125) { return float4(1.0, 1.0, 0.0, 1.0); }
 
-if (mod(texCoord.x, 0.05) < 0.01) { return float4(0.0, 1.0, 1.0, 1.0); }
+//if (mod(texCoord.x, 0.05) < 0.01) { return float4(0.0, 1.0, 1.0, 1.0); }
+
+float2 tex_mod = float2(0.1, 1.0);
 
 float on_grid = 0.0;
 if (tex_mod.x < 1.0) { on_grid = 1.0; }
