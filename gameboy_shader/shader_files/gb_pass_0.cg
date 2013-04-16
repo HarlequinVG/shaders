@@ -160,7 +160,10 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
     float2 tex_mod = mod(floor(texCoord * (IN.texture_size / IN.video_size) * IN.output_size), IN.output_size.x / IN.video_size.x);
     //float2 tex_mod = mod(floor(outCoord + dot_offset), dot_size);
 
-    float on_grid = (min(tex_mod.x, tex_mod.y) < 1.0);
+float on_grid = 0.0;
+if (tex_mod.x < 1.0) { on_grid = 1.0; }
+
+    //float on_grid = (min(tex_mod.x, tex_mod.y) < 1.0);
 
     if (on_grid) {
         //out_color = float4(tex2D(COLOR_PALETTE, float2(0.5, 0.125)).rgb, 0.0);
