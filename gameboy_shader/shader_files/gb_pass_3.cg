@@ -76,7 +76,7 @@ fixed4 gaussian_blur(sampler2D texture, float2 tex_coord, fixed2 texel, input IN
 float4 main_fragment( float2 texCoord		: TEXCOORD0, 
 		      uniform input IN )	: COLOR
 {
-    fixed2 texel = fixed2(ddx(texCoord.x), ddy(texCoord.y));
+    fixed2 texel = fixed2(1.0 / IN.texture_size);
 
     return gaussian_blur(IN.texture, 
 			 texCoord,	//apply shadow offset
