@@ -128,8 +128,6 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
     fixed2 palette_coordinate = fixed2(0.5, (abs(1 - out_color.r) * 0.75) + 0.125);	//directly map input grayscale value to color palette y coordiante
     out_color = fixed4(tex2D(COLOR_PALETTE, palette_coordinate).rgb, ceil(abs(1.0 - out_color.r)));	//sample color from palette, alpha = 1 if color is not tranparent
 
-  //repeat value-index mapping procedure for previous 4 frames for use in motion blur
-
 
   //temp fix for backwards compatibility///////////////////////////////////////////////////////////////////////////////////
 
