@@ -23,8 +23,7 @@
 //config                                                                                                                                  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define blur_factor 0.33		//blending factor of previous frames for motion blur (0-1, lower is more transparent)
-#define blur_frames 3		//number of previous frames to include in motion blur (0-4)
+#define blur_factor 0.333		//blending factor of previous frames for motion blur (0-1, lower is more transparent)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //structs                                                                                                                                 //
@@ -78,23 +77,11 @@ void main_vertex( float4 position      			: POSITION,
 		  out float2 oOutCoord			: TEXCOORD1,
   		  uniform float4x4 modelViewProj,
   		  uniform input IN,
-		  uniform sampler2D COLOR_PALETTE	: TEXUNIT5, 
 		  out colors oColors )
 {
     oPosition = mul(modelViewProj, position);
     oTexCoord = texCoord; 								//input texel coordinate in range [0, IN.video_size/IN.texture_size]
     oOutCoord = texCoord * (IN.texture_size / IN.video_size) * IN.output_size;		//output texel coordinate in range [0, IN.output_size]
-
-
-  //sample the user's color palette now so we don't have to in the fragment shader...
-
-    oColors = colors (
-	fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.875)).rgb, 1.0),	//dark
-	fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.625)).rgb, 1.0),	//medium
-	fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.375)).rgb, 1.0),	//light
-	fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.125)).rgb, 0.0)	//transparent
-    );
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -126,52 +113,54 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 		      uniform prev_1 PREV1, 
 		      uniform prev_2 PREV2, 
 		      uniform prev_3 PREV3, 
-		      uniform sampler2D COLOR_PALETTE	: TEXUNIT5, 
-		      in colors COLORS ) : COLOR
+		      uniform sampler2D COLOR_PALETTE	: TEXUNIT5 ) : COLOR
+		      //in colors COLORS ) : COLOR
 {
   //sample the input textures
 
     fixed4 out_color = tex2D(IN.texture, texCoord);
-    fixed4 color_array[4] = fixed4[](COLORS.color_0, COLORS.color_1, COLORS.color_2, COLORS.color_3);	//why is this not working if the color palette uniform is removed...?
 
 
   //input grayscale values:
   //0.000 black - 0.333 medium gray - 0.667 light gray - 1.000 white
   //multiply grayscale value by 3 to obtain int value in range [0, 3], acts as index for arrays storing custom palatte UV coordinates and alpha value
 
-    int color_index = floor(out_color.r * 3);	//D3D is doing something weird here, if a color is sampled from a texture and used as an index value (as in the next line), using the result of that will cause a crash
-    out_color = color_array[color_index];	//D3D has problem with color_index used here, just use OpenGL for now instead...
-
+    fixed2 palette_coordinate = fixed2(0.5, (abs(1 - out_color.r) * 0.75) + 0.125);	//directly map input grayscale value to color palette y coordiante
+    out_color = fixed4(tex2D(COLOR_PALETTE, palette_coordinate).rgb, ceil(abs(1.0 - out_color.r)));	//sample color from palette, alpha = 1 if color is not tranparent
 
   //repeat value-index mapping procedure for previous 4 frames for use in motion blur
 
-    int4 color_indices = int4( tex2D(PREV.texture,  texCoord).r * 3, 
-			       tex2D(PREV1.texture, texCoord).r * 3, 
-			       tex2D(PREV2.texture, texCoord).r * 3, 
-			       tex2D(PREV3.texture, texCoord).r * 3 );
 
+  //temp fix for backwards compatibility///////////////////////////////////////////////////////////////////////////////////
 
-  //look up color and alpha values for up to 4 previous frames
-  //alpha value is lightened each step backwards by blur_factor
-  //standard alpha blending to merge previous frames with current output
+    fixed4 prev_color = tex2D(PREV.texture, texCoord);
+    palette_coordinate = fixed2(0.5, (abs(1 - prev_color.r) * 0.75) + 0.125);
+    prev_color = fixed4(tex2D(COLOR_PALETTE, palette_coordinate).rgb, ceil(abs(1.0 - prev_color.r))) * 
+		 fixed4(fixed3(1.0), pow(fixed(blur_factor), 0 + 1.0) * (1.0 - out_color.a));
+    out_color = fixed4( (prev_color * prev_color.a).rgb + (out_color * (1 - prev_color.a)).rgb, 
+			max(out_color.a, prev_color.a) );
 
-    for (int i = 0; i < blur_frames; i++)
-    {
-	fixed4 prev_color = color_array[color_indices[i]] * 							//retrieve the colorized value...
-			    fixed4(fixed3(1.0), pow(fixed(blur_factor), i + 1.0) * (1.0 - out_color.a));	//...then apply time-corrected blur factor and force current frame precedence for opaque pixels
+    prev_color = tex2D(PREV1.texture, texCoord);
+    palette_coordinate = fixed2(0.5, (abs(1 - prev_color.r) * 0.75) + 0.125);
+    prev_color = fixed4(tex2D(COLOR_PALETTE, palette_coordinate).rgb, ceil(abs(1.0 - prev_color.r))) * 
+		 fixed4(fixed3(1.0), pow(fixed(blur_factor), 1 + 1.0) * (1.0 - out_color.a));
+    out_color = fixed4( (prev_color * prev_color.a).rgb + (out_color * (1 - prev_color.a)).rgb, 
+			max(out_color.a, prev_color.a) );
 
-	//fixed4 prev_color = color_array[color_indices[i]] * 							
-	//		    fixed4(fixed3(1.0), (1.0 - (blur_factor * (i + 1.0))) * (1.0 - out_color.a));	//subtractive fading
+    prev_color = tex2D(PREV2.texture, texCoord);
+    palette_coordinate = fixed2(0.5, (abs(1 - prev_color.r) * 0.75) + 0.125);
+    prev_color = fixed4(tex2D(COLOR_PALETTE, palette_coordinate).rgb, ceil(abs(1.0 - prev_color.r))) * 
+		 fixed4(fixed3(1.0), pow(fixed(blur_factor), 2 + 1.0) * (1.0 - out_color.a));
+    out_color = fixed4( (prev_color * prev_color.a).rgb + (out_color * (1 - prev_color.a)).rgb, 
+			max(out_color.a, prev_color.a) );
 
-	out_color = fixed4( (prev_color * prev_color.a) + (out_color * (1 - prev_color.a)).rgb, 		//alpha blend with the output color...
-			    max(out_color.a, prev_color.a) );							//...and set new alpha value for future blending
-    }
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
   //add the grid overlay for the dot matrix by coloring grid pixels white
 
     int on_grid = overlay_matrix(outCoord, IN);
-    out_color = (out_color * (1.0 - on_grid)) + fixed4(on_grid * color_array[3]);
+    out_color = (out_color * (1.0 - on_grid)) + fixed4(on_grid * fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.125)).rgb, 0.0));
 
 
   //return

@@ -23,7 +23,7 @@
 //config                                                                                                                                  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define adjacent_texel_color_blending 0.1255	//used in the quick blur filter that softens the dot-grid-dot transitions in the matrix
+#define adjacent_texel_color_blending 0.25	//used in the quick blur filter that softens the dot-grid-dot transitions in the matrix
 #define adjacent_texel_alpha_blending 0.1255	//values describe the amount of color/alpha swapped between neighboring texels
 #define diagonal_texel_color_blending 0.1255	//ex. texelA float4(1.0,1.0,1.0,0.0) neighbors texelB float4(0.0,0.0,0.0,1.0), 0.2 color blending and...
 #define diagonal_texel_alpha_blending 0.0627	//...0.3 alpha blending would result in texelA float4(0.8,0.8,0.8,0.3) and texelB float4(0.2,0.2,0.2,0.7)
