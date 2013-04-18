@@ -1,0 +1,104 @@
+///////////////////////////////////////////////////////////////////////////
+//                                                                       //
+// Gameboy Classic Shader                                                //
+//                                                                       //
+// Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
+//                                                                       //
+// This program is free software: you can redistribute it and/or modify  //
+// it under the terms of the GNU General Public License as published by  //
+// the Free Software Foundation, either version 3 of the License, or     //
+// (at your option) any later version.                                   //
+//                                                                       //
+// This program is distributed in the hope that it will be useful,       //
+// but WITHOUT ANY WARRANTY; without even the implied warranty of        //
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         //
+// GNU General Public License for more details.                          //
+//                                                                       //
+// You should have received a copy of the GNU General Public License     //
+// along with this program.  If not, see <http://www.gnu.org/licenses/>. //
+//                                                                       //
+///////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//config                                                                                                                                  //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//structs                                                                                                                                 //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct input
+{
+    float2 video_size;
+    float2 texture_size;
+    float2 output_size;
+    float frame_count;
+    sampler2D texture : TEXUNIT0;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//vertex definitions                                                                                                                      //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define video_scale 		floor(IN.output_size.y / IN.video_size.y)		//largest integer scale of input video that will fit in the current output (y axis would typically be limiting on widescreens)
+#define scaled_video_out	(IN.video_size * video_scale)				//size of the scaled video
+#define uv_ratio 		(IN.output_size / scaled_video_out)			//used to convert texCoord to new scale
+#define texel_offset 		((IN.output_size - scaled_video_out) / 2.0)		//determine size (in texels) of the borders
+#define tex_offset 		(texel_offset / (IN.texture_size * video_scale))	//convert the offset to tex coords
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//vertex shader                                                                                                                           //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void main_vertex( float4 position      			: POSITION,
+  		  out float4 oPosition 			: POSITION,
+  		  float2 texCoord      			: TEXCOORD0,
+  		  out float2 oTexCoord 			: TEXCOORD0,
+		  uniform sampler2D COLOR_PALETTE	: TEXUNIT1,
+  		  uniform float4x4 modelViewProj,
+  		  uniform input IN )
+{
+    oPosition = mul(modelViewProj, position);
+    oTexCoord = (texCoord * uv_ratio) - tex_offset;	//remap texture coordinates to match integer scaled output and offset to center video
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//fragment definitions                                                                                                                    //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define grayscale_to_rgb(value) tex2D(COLOR_PALETTE, fixed2((ceil(value) + 0.5) / 2.0, 0.5)).rgb	//hardcoded algorithm for mapping values to palette texture coordiantes then sampling
+#define grayscale_to_alpha(value) value									//edit this if alpha mapping changes later
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//fragment shader                                                                                                                         //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+float4 main_fragment( float2 texCoord        		: TEXCOORD0, 
+		      uniform input IN,
+		      uniform sampler2D COLOR_PALETTE	: TEXUNIT1 ) : COLOR
+{
+  //determine is the current texel being processed is video or border then apply appropriate color
+
+    int is_video_texel = all( fixed4( step(fixed2(0.0), texCoord), 
+				      step(texCoord, (IN.video_size / IN.texture_size)) ) );
+
+    fixed4 out_color = (fixed4(1.0, 1.0, 1.0, 0.0) * !is_video_texel) + 
+		       (tex2D(IN.texture, texCoord) * is_video_texel);
+
+
+  //colorize the image
+  //TODO: move this to vertex shader in next version of RetroArch
+
+    fixed color_value = abs(1 - out_color.r);							//invert grayscale value for palette indexing and alpha assignment
+    out_color = fixed4(grayscale_to_rgb(color_value), grayscale_to_alpha(color_value));		//colorize texel
+
+
+  //DEBUG
+    if (texCoord.x < 0.2083) { return tex2D(IN.texture, texCoord); }
+    else if (texCoord.x < 0.4166) { return float4(out_color.a, 0.0, 0.0, 1.0); }
+
+
+  //return fragment color
+
+    return out_color;
+}
