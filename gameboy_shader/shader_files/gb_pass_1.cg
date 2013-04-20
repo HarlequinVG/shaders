@@ -23,7 +23,7 @@
 //config                                                                                                                                  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define blending_mode 1				//0 - only the space between dots is blending, 1 - all texels are blended
+#define blending_mode 0				//0 - only the space between dots is blending, 1 - all texels are blended
 #define adjacent_texel_alpha_blending 0.1255	//the amount of alpha swapped between neighboring texels
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
