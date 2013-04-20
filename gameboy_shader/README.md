@@ -24,19 +24,22 @@ Configuration options
 
 There are configuration options throughout the .cg files in the `gameboy_shader/shader_files/` directory that can be changed using any text editor to affect various visual effects. They can all be found under the "Config" header at the top of the files. Here's a list of configuration options and their default values:
 
-+ `gb_pass_0.cg`
++ `gameboy_shader/shader_files/gb_pass_0.cg`
  
-  `#define baseline_alpha 0.02 //the alpha value of dots in their "off" state, does not affect the border region of the screen`
+  `#define baseline_alpha 0.02 //the alpha value of dots in their "off" state, does not affect the border region of the screen - [0, 1]`
+  `#define response_time 0.4 //simulate response time, higher values result in longer color transition periods - [0, 1]`
 
-+ `gb_pass_1.cg`
+
++ `gameboy_shader/shader_files/gb_pass_1.cg`
  
-  `#define blending_mode 1 //0 - only the space between dots is blending, 1 - all texels are blended`
+  `#define blending_mode 0 //0 - only the space between dots is blending, 1 - all texels are blended`
   `#define adjacent_texel_alpha_blending 0.1255  //the amount of alpha swapped between neighboring texels`
 
-+ `gb_pass_4.cg`
+
++ `gameboy_shader/shader_files/gb_pass_4.cg`
  
-  `#define contrast 0.75 //analogous to the contrast slider on the original Gameboy, higher values darken the image - [0, 1]`
-  `#define shadow_opacity 0.75 //how strongly shadows affect the background, higher values darken the shadows - [0, 1]`
+  `#define contrast 0.95 //analogous to the contrast slider on the original Gameboy, higher values darken the image - [0, 1]`
+  `#define shadow_opacity 0.65 //how strongly shadows affect the background, higher values darken the shadows - [0, 1]`
   `#define shadow_offset_x 1.0 //how far the shadow should be shifted to the right in pixels - [-infinity, infinity]`
   `#define shadow_offset_y 1.0 //how far the shadow should be shifted to down in pixels - [-infinity, infinity]`
 
@@ -46,9 +49,9 @@ Changing the palette and background images
 You will find the files for the palette and background in the `gameboy_shader/resources/` directory. These files can be edited or replaced using any image editor as long as you keep the format the same and filetype intact.
 
 Color palette:<br>
-`palette.png, 128x64`
+`gameboy_shader/resources/palette.png, 128x64`
 `Two horizontally aranged 64x64 squares filled in with the background color (left) and foreground color (right)`
 
 Background image:<br>
-`background.png, 2048x2048`
+`gameboy_shader/resources/background.png, 2048x2048`
 
