@@ -154,13 +154,13 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
   //response time effect implmented through an exponential dropoff algorithm
 
     fixed3 input_rgb = curr_rgb;
-    input_rgb = input_rgb + ((prev0_rgb - input_rgb) * response_time);
-    input_rgb = input_rgb + ((prev1_rgb - input_rgb) * pow(response_time, 2.0));
-    input_rgb = input_rgb + ((prev2_rgb - input_rgb) * pow(response_time, 3.0));
-    input_rgb = input_rgb + ((prev3_rgb - input_rgb) * pow(response_time, 4.0));
-    input_rgb = input_rgb + ((prev4_rgb - input_rgb) * pow(response_time, 5.0));
-    input_rgb = input_rgb + ((prev5_rgb - input_rgb) * pow(response_time, 6.0));
-    input_rgb = input_rgb + ((prev6_rgb - input_rgb) * pow(response_time, 7.0));
+    input_rgb += (prev0_rgb - input_rgb) * response_time;
+    input_rgb += (prev1_rgb - input_rgb) * pow(response_time, 2.0);
+    input_rgb += (prev2_rgb - input_rgb) * pow(response_time, 3.0);
+    input_rgb += (prev3_rgb - input_rgb) * pow(response_time, 4.0);
+    input_rgb += (prev4_rgb - input_rgb) * pow(response_time, 5.0);
+    input_rgb += (prev5_rgb - input_rgb) * pow(response_time, 6.0);
+    input_rgb += (prev6_rgb - input_rgb) * pow(response_time, 7.0);
 
 
   //apply foreground color and assign alpha value
