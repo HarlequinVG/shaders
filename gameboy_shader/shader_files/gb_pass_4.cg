@@ -23,8 +23,8 @@
 //config                                                                                                                                  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define contrast 0.75		//analogous to the contrast slider on the original Gameboy, higher values darken the image - [0, 1]
-#define shadow_opacity 0.75	//how strongly shadows affect the background, higher values darken the shadows - [0, 1]
+#define contrast 0.95		//analogous to the contrast slider on the original Gameboy, higher values darken the image - [0, 1]
+#define shadow_opacity 0.65	//how strongly shadows affect the background, higher values darken the shadows - [0, 1]
 #define shadow_offset_x 1.0	//how far the shadow should be shifted to the right in pixels - [-infinity, infinity]
 #define shadow_offset_y 1.0	//how far the shadow should be shifted to down in pixels - [-infinity, infinity]
 
