@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //                                                                       //
-// Gameboy Classic Shader                                                //
+// Gameboy Classic Shader v0.2.2                                         //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
 //                                                                       //
@@ -23,10 +23,8 @@
 //config                                                                                                                                  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define adjacent_texel_color_blending 0.25	//used in the quick blur filter that softens the dot-grid-dot transitions in the matrix
-#define adjacent_texel_alpha_blending 0.1255	//values describe the amount of color/alpha swapped between neighboring texels
-#define diagonal_texel_color_blending 0.1255	//ex. texelA float4(1.0,1.0,1.0,0.0) neighbors texelB float4(0.0,0.0,0.0,1.0), 0.2 color blending and...
-#define diagonal_texel_alpha_blending 0.0627	//...0.3 alpha blending would result in texelA float4(0.8,0.8,0.8,0.3) and texelB float4(0.2,0.2,0.2,0.7)
+#define blending_mode 1				//0 - only the space between dots is blending, 1 - all texels are blended
+#define adjacent_texel_alpha_blending 0.1255	//the amount of alpha swapped between neighboring texels
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //structs                                                                                                                                 //
@@ -52,6 +50,10 @@ struct blur_coords
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//vertex definitions                                                                                                                      //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //vertex shader                                                                                                                           //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -66,17 +68,64 @@ void main_vertex( float4 position      			: POSITION,
     oPosition = mul(modelViewProj, position);
     oTexCoord = texCoord;
 
-    fixed texel = 1.0 / IN.texture_size;
+
+  //define the neighboring texel coordinates for use in blur
+
+    fixed2 texel = 1.0 / IN.texture_size;	//size of one texel
+
     oBlurCoords = blur_coords 
     (
-	texCoord + fixed2(0.0, texel),
-	texCoord + fixed2(0.0, -texel),
-	texCoord + fixed2(texel, 0.0),
-	texCoord + fixed2(-texel, 0.0),
-	fixed2(0.0),
-	texel * (IN.output_size - 2.0)
+	texCoord + fixed2(0.0, texel.y),	//down
+	texCoord + fixed2(0.0, -texel.y),	//up
+	texCoord + fixed2(texel.x, 0.0),	//right
+	texCoord + fixed2(-texel.x, 0.0),	//left
+	fixed2(0.0),				//lower texture bounds
+	texel * (IN.output_size - 2.0)		//upper texture bounds
     );
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//fragment definitions                                                                                                                    //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define blending_modifier(color) saturate(fixed(color.a == 0) + blending_mode)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//fragment functions                                                                                                                      //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//a simple blur technique that softens harsh color transitions
+//specialized to only blur alpha values and limited to only blurring texels lying in the spaces between two or more texels //FIX ME
+
+fixed simple_blur(input IN, fixed4 COLOR, blur_coords BLUR_COORDS)
+{
+  //clamp the blur coords to the input texture size so it doesn't attempt to sample off the texture (it'll retrieve float4(0.0) and darken the edges otherwise)
+
+    BLUR_COORDS.tex_coord_1 = clamp(BLUR_COORDS.tex_coord_1, BLUR_COORDS.lower_bound, BLUR_COORDS.upper_bound);
+    BLUR_COORDS.tex_coord_2 = clamp(BLUR_COORDS.tex_coord_2, BLUR_COORDS.lower_bound, BLUR_COORDS.upper_bound);
+    BLUR_COORDS.tex_coord_3 = clamp(BLUR_COORDS.tex_coord_3, BLUR_COORDS.lower_bound, BLUR_COORDS.upper_bound);
+    BLUR_COORDS.tex_coord_4 = clamp(BLUR_COORDS.tex_coord_4, BLUR_COORDS.lower_bound, BLUR_COORDS.upper_bound);
+
+
+  //sample adjacent texels based on the coordinates above
+
+    fixed4 adjacent_texel_1 = tex2D(IN.texture, BLUR_COORDS.tex_coord_1);
+    fixed4 adjacent_texel_2 = tex2D(IN.texture, BLUR_COORDS.tex_coord_2);
+    fixed4 adjacent_texel_3 = tex2D(IN.texture, BLUR_COORDS.tex_coord_3);
+    fixed4 adjacent_texel_4 = tex2D(IN.texture, BLUR_COORDS.tex_coord_4);
+
+
+  //sum the alpha differences between neighboring texels, apply modifiers, then subtract the result from the current fragment alpha value
+
+    COLOR.a -= ( (COLOR.a - adjacent_texel_1.a) + 
+		 (COLOR.a - adjacent_texel_2.a) + 
+		 (COLOR.a - adjacent_texel_3.a) + 
+		 (COLOR.a - adjacent_texel_4.a) ) * adjacent_texel_alpha_blending * blending_modifier(COLOR);
+
+
+  //return new alpha value
+
+    return COLOR.a;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -85,64 +134,19 @@ void main_vertex( float4 position      			: POSITION,
 
 float4 main_fragment( float2 texCoord        		: TEXCOORD0, 
 		      in blur_coords blur_coords,
-		      uniform input IN )     		: COLOR
+		      uniform input IN ) 		: COLOR
 {
-  //sample input texture
+  //sample the input textures
 
     fixed4 out_color = tex2D(IN.texture, texCoord);
 
 
-  //obtain all the neighboring texels and clamp to prevent out of bounds sampling
-  
-    blur_coords.tex_coord_1 = clamp(blur_coords.tex_coord_1, blur_coords.lower_bound, blur_coords.upper_bound);
-    blur_coords.tex_coord_2 = clamp(blur_coords.tex_coord_2, blur_coords.lower_bound, blur_coords.upper_bound);
-    blur_coords.tex_coord_3 = clamp(blur_coords.tex_coord_3, blur_coords.lower_bound, blur_coords.upper_bound);
-    blur_coords.tex_coord_4 = clamp(blur_coords.tex_coord_4, blur_coords.lower_bound, blur_coords.upper_bound);
+  //apply the blur effect
 
-    fixed2 tex_coord_d1 = clamp( fixed2(blur_coords.tex_coord_3.x, blur_coords.tex_coord_1.y), blur_coords.lower_bound, blur_coords.upper_bound );
-    fixed2 tex_coord_d2 = clamp( fixed2(blur_coords.tex_coord_4.x, blur_coords.tex_coord_1.y), blur_coords.lower_bound, blur_coords.upper_bound );
-    fixed2 tex_coord_d3 = clamp( fixed2(blur_coords.tex_coord_3.x, blur_coords.tex_coord_2.y), blur_coords.lower_bound, blur_coords.upper_bound );
-    fixed2 tex_coord_d4 = clamp( fixed2(blur_coords.tex_coord_4.x, blur_coords.tex_coord_2.y), blur_coords.lower_bound, blur_coords.upper_bound );
+    out_color.a = simple_blur(IN, out_color, blur_coords);
 
-    fixed4 adjacent_texel_1 = tex2D(IN.texture, blur_coords.tex_coord_1);
-    fixed4 adjacent_texel_2 = tex2D(IN.texture, blur_coords.tex_coord_2);
-    fixed4 adjacent_texel_3 = tex2D(IN.texture, blur_coords.tex_coord_3);
-    fixed4 adjacent_texel_4 = tex2D(IN.texture, blur_coords.tex_coord_4);
-
-    fixed4 diagonal_texel_1 = tex2D(IN.texture, tex_coord_d1);
-    fixed4 diagonal_texel_2 = tex2D(IN.texture, tex_coord_d2);
-    fixed4 diagonal_texel_3 = tex2D(IN.texture, tex_coord_d3);
-    fixed4 diagonal_texel_4 = tex2D(IN.texture, tex_coord_d4);
-
-
-  //simple blur for softening sharp changes in color and alpha values
-
-    if ((adjacent_texel_1.a + adjacent_texel_2.a + adjacent_texel_3.a + adjacent_texel_4.a) >= 2.0) 		//only called on texels between two dots
-    {
-	out_color.rgb -= ( ((out_color.rgb - adjacent_texel_1.rgb) * adjacent_texel_1.a) + 
-			   ((out_color.rgb - adjacent_texel_2.rgb) * adjacent_texel_2.a) + 
-			   ((out_color.rgb - adjacent_texel_3.rgb) * adjacent_texel_3.a) + 
-			   ((out_color.rgb - adjacent_texel_4.rgb) * adjacent_texel_4.a) ) * adjacent_texel_color_blending;
-
-	out_color.a -= ( (out_color.a - adjacent_texel_1.a) + 
-			 (out_color.a - adjacent_texel_2.a) + 
-			 (out_color.a - adjacent_texel_3.a) + 
-			 (out_color.a - adjacent_texel_4.a) ) * adjacent_texel_alpha_blending;
-    }
-
-    else if ((diagonal_texel_1.a + diagonal_texel_2.a + diagonal_texel_3.a + diagonal_texel_4.a) >= 4.0) 	//only called on texels at the center of a block of 4 dots
-    {
-	out_color.rgb -= ( ((out_color.rgb - diagonal_texel_1.rgb) * diagonal_texel_1.a) + 
-			   ((out_color.rgb - diagonal_texel_2.rgb) * diagonal_texel_2.a) + 
-			   ((out_color.rgb - diagonal_texel_3.rgb) * diagonal_texel_3.a) + 
-			   ((out_color.rgb - diagonal_texel_4.rgb) * diagonal_texel_4.a) ) * diagonal_texel_color_blending;
-
-	out_color.a -= ( (out_color.a - diagonal_texel_1.a) + 
-			 (out_color.a - diagonal_texel_2.a) + 
-			 (out_color.a - diagonal_texel_3.a) + 
-			 (out_color.a - diagonal_texel_4.a) ) * diagonal_texel_alpha_blending;
-    }
 
   //return
+
     return out_color;
 }

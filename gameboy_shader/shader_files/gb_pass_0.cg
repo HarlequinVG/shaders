@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //                                                                       //
-// Gameboy Classic Shader                                                //
+// Gameboy Classic Shader v0.2.2                                         //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
 //                                                                       //
@@ -23,7 +23,7 @@
 //config                                                                                                                                  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define blur_factor 0.333		//blending factor of previous frames for motion blur (0-1, lower is more transparent)
+#define baseline_alpha 0.02		//the alpha value of dots in their "off" state, does not affect the border region of the screen
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //structs                                                                                                                                 //
@@ -35,36 +35,22 @@ struct input
     float2 texture_size;
     float2 output_size;
     float frame_count;
-    sampler2D texture : TEXUNIT0;
+    sampler2D texture	: TEXUNIT0;
 };
 
-struct prev_0
+struct matrix_data
 {
-    sampler2D texture : TEXUNIT1;
+    fixed2 dot_size	: TEXCOORD1;
+    fixed2 one_texel	: TEXCOORD2;
 };
 
-struct prev_1
-{
-    sampler2D texture : TEXUNIT2;
-};
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//vertex definitions                                                                                                                      //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct prev_2
-{
-    sampler2D texture : TEXUNIT3;
-};
-
-struct prev_3
-{
-    sampler2D texture : TEXUNIT4;
-};
-
-struct colors
-{
-    fixed4 color_0 : TEXCOORD2;
-    fixed4 color_1 : TEXCOORD3;
-    fixed4 color_2 : TEXCOORD4;
-    fixed4 color_3 : TEXCOORD5;
-};
+#define video_scale 		floor(IN.output_size.y / IN.video_size.y)		//largest integer scale of input video that will fit in the current output (y axis would typically be limiting on widescreens)
+#define scaled_video_out	(IN.video_size * video_scale)				//size of the scaled video
+#define half_pixel		(0.5 / IN.output_size)					//it's... ummm, half a pixel
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //vertex shader                                                                                                                           //
@@ -74,91 +60,53 @@ void main_vertex( float4 position      			: POSITION,
   		  out float4 oPosition 			: POSITION,
   		  float2 texCoord      			: TEXCOORD0,
   		  out float2 oTexCoord 			: TEXCOORD0,
-		  out float2 oOutCoord			: TEXCOORD1,
+		  out matrix_data oMatrixData,
   		  uniform float4x4 modelViewProj,
-  		  uniform input IN,
-		  out colors oColors )
+  		  uniform input IN )
 {
-    oPosition = mul(modelViewProj, position);
-    oTexCoord = texCoord; 								//input texel coordinate in range [0, IN.video_size/IN.texture_size]
-    oOutCoord = texCoord * (IN.texture_size / IN.video_size) * IN.output_size;		//output texel coordinate in range [0, IN.output_size]
+    oPosition = mul(modelViewProj, position) / float4( float2(IN.output_size / scaled_video_out), 1.0, 1.0 );	//remaps position to integer scaled output
+    oTexCoord = texCoord + half_pixel;										//half pixel offset seems necessary here
+
+    oMatrixData = matrix_data( 
+	1.0 / IN.texture_size,				//should always be square, but why the hell not
+	1.0 / (IN.texture_size * video_scale)		//one texel on the hypothetical scaled input texture
+    );
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //fragment definitions                                                                                                                    //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define dot_size IN.output_size.x / IN.video_size.x	//size of each "dot" in the dot matrix - generally IN.video_size times integer scale of the output
-#define dot_padding 1.0					//width of the "grid" between dots in the matrix (might be problems bluring in later passes if >1)
-#define dot_offset 1.0					//0 - grid lines on left and top of screen, 1 - right and bottom (haven't set up the blur filter to deal with this yet, just leave at 1)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//fragment functions                                                                                                                      //
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-int overlay_matrix(float2 texel_coord, input IN)	//returns 0 if pixel is on a dot, 1 if pixel is in padding region
-{
-    float2 tex_mod = mod(texel_coord + dot_offset, dot_size);
-    return (min(tex_mod.x, tex_mod.y) < dot_padding);
-}
+#define foreground_color tex2D(COLOR_PALETTE, fixed2(0.75, 0.5)).rgb					//hardcoded to look up the foreground color from the right half of the palette image
+#define rgb_to_alpha(rgb) ( ((rgb.r + rgb.g + rgb.b) / 3.0) + (is_on_dot * baseline_alpha) )		//averages rgb values (allows it to work with color games), modified for contrast and base alpha
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //fragment shader                                                                                                                         //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 float4 main_fragment( float2 texCoord        		: TEXCOORD0, 
-		      float2 outCoord			: TEXCOORD1,
+		      in matrix_data matrixData,
 		      uniform input IN,
-		      uniform prev_0 PREV, 
-		      uniform prev_1 PREV1, 
-		      uniform prev_2 PREV2, 
-		      uniform prev_3 PREV3, 
-		      uniform sampler2D COLOR_PALETTE	: TEXUNIT5 ) : COLOR
-		      //in colors COLORS ) : COLOR
+		      uniform sampler2D COLOR_PALETTE	: TEXUNIT1 ) : COLOR
 {
-  //sample the input textures
+  //determine if the corrent texel lies on a dot or in the space between dots
 
-    fixed4 out_color = tex2D(IN.texture, texCoord);
-
-
-  //input grayscale values:
-  //0.000 black - 0.333 medium gray - 0.667 light gray - 1.000 white
-  //multiply grayscale value by 3 to obtain int value in range [0, 3], acts as index for arrays storing custom palatte UV coordinates and alpha value
-
-    fixed2 palette_coordinate = fixed2(0.5, (abs(1 - out_color.r) * 0.75) + 0.125);	//directly map input grayscale value to color palette y coordiante
-    out_color = fixed4(tex2D(COLOR_PALETTE, palette_coordinate).rgb, ceil(abs(1.0 - out_color.r)));	//sample color from palette, alpha = 1 if color is not tranparent
+    int is_on_dot = all( int2( mod(texCoord.x, matrixData.dot_size.x) > matrixData.one_texel.x, 		//returns 1 if fragment lies on a dot, 0 otherwise
+			       mod(texCoord.y, matrixData.dot_size.y) > matrixData.one_texel.y ) );
 
 
-  //temp fix for backwards compatibility///////////////////////////////////////////////////////////////////////////////////
+  //apply foreground color and assign alpha value
 
-    fixed4 prev_color = tex2D(PREV.texture, texCoord);
-    palette_coordinate = fixed2(0.5, (abs(1 - prev_color.r) * 0.75) + 0.125);
-    prev_color = fixed4(tex2D(COLOR_PALETTE, palette_coordinate).rgb, ceil(abs(1.0 - prev_color.r))) * 
-		 fixed4(fixed3(1.0), pow(fixed(blur_factor), 0 + 1.0) * (1.0 - out_color.a));
-    out_color = fixed4( (prev_color * prev_color.a).rgb + (out_color * (1 - prev_color.a)).rgb, 
-			max(out_color.a, prev_color.a) );
-
-    prev_color = tex2D(PREV1.texture, texCoord);
-    palette_coordinate = fixed2(0.5, (abs(1 - prev_color.r) * 0.75) + 0.125);
-    prev_color = fixed4(tex2D(COLOR_PALETTE, palette_coordinate).rgb, ceil(abs(1.0 - prev_color.r))) * 
-		 fixed4(fixed3(1.0), pow(fixed(blur_factor), 1 + 1.0) * (1.0 - out_color.a));
-    out_color = fixed4( (prev_color * prev_color.a).rgb + (out_color * (1 - prev_color.a)).rgb, 
-			max(out_color.a, prev_color.a) );
-
-    prev_color = tex2D(PREV2.texture, texCoord);
-    palette_coordinate = fixed2(0.5, (abs(1 - prev_color.r) * 0.75) + 0.125);
-    prev_color = fixed4(tex2D(COLOR_PALETTE, palette_coordinate).rgb, ceil(abs(1.0 - prev_color.r))) * 
-		 fixed4(fixed3(1.0), pow(fixed(blur_factor), 2 + 1.0) * (1.0 - out_color.a));
-    out_color = fixed4( (prev_color * prev_color.a).rgb + (out_color * (1 - prev_color.a)).rgb, 
-			max(out_color.a, prev_color.a) );
-
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    fixed3 input_rgb = abs(1 - tex2D(IN.texture, texCoord).rgb);		//sample the rgb value of the input video sent from RetroArch
+    fixed4 out_color = fixed4(foreground_color, rgb_to_alpha(input_rgb));	//apply the foreground color to all texels (the color will be modified by alpha later) and assign alpha based on rgb input
 
 
-    int on_grid = overlay_matrix(outCoord, IN);
-    out_color = (out_color * (1.0 - on_grid)) + fixed4(on_grid * fixed4(tex2D(COLOR_PALETTE, float2(0.5, 0.125)).rgb, 0.0));
+  //overlay the matrix
+
+    out_color.a *= is_on_dot;		//if the fragment is not on a dot, set its alpha value to 0
 
 
-  //return
+  //return fragment color
+
     return out_color;
 }

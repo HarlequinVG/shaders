@@ -1,12 +1,12 @@
 shaders = 5
-shader0 = shader_files/gb_pass_0.cg	//colorize image, add motion blur, and overlay dot matrix grid
-shader1 = shader_files/gb_pass_1.cg	//soft blur of texels positioned between dots
-shader2 = shader_files/gb_pass_2.cg	//gaussian blur x-axis pass
-shader3 = shader_files/gb_pass_3.cg	//gaussian blur y-axis pass
-shader4 = shader_files/gb_pass_4.cg	//blend the layers together
+shader0 = shader_files/gb_pass_0.cg
+shader1 = shader_files/gb_pass_1.cg
+shader2 = shader_files/gb_pass_2.cg
+shader3 = shader_files/gb_pass_3.cg
+shader4 = shader_files/gb_pass_4.cg
 
-scale_type0 = source
-scale0 = 7
+scale_type0 = viewport
+scale0 = 1
 
 scale_type1 = source
 scale1 = 1
@@ -16,6 +16,9 @@ scale2 = 1
 
 scale_type3 = source
 scale3 = 1
+
+scale_type4 = source
+scale4 = 1
 
 filter_linear0 = false
 filter_linear1 = false

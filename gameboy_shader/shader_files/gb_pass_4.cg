@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //                                                                       //
-// Gameboy Classic Shader                                                //
+// Gameboy Classic Shader v0.2.2                                         //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
 //                                                                       //
@@ -23,13 +23,10 @@
 //config                                                                                                                                  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//intended for testing purposes only - you'll likely get better picture quality by changing settings or changing palette/background files than enabling these
-//#define SCENE_ONLY			//shows scene only (no shadows or background)
-//#define SHADOWS_ONLY			//shows shadows only (no scene or background)
-//#define BACKGROUND_ONLY		//shows background only (no scene or shadows)
-//#define SCENE_AND_SHADOWS		//shows scene blended with shadows (no background image)
-//#define SCENE_AND_BACKGROUND		//shows scene blended with background (no shadows)
-//#define SHADOWS_AND_BACKGROUND	//show shadows blended with background image (no scene)
+#define contrast 0.75		//analogous to the contrast slider on the original Gameboy, higher values darken the image - [0, 1]
+#define shadow_opacity 0.75	//how strongly shadows affect the background, higher values darken the shadows - [0, 1]
+#define shadow_offset_x 1.0	//how far the shadow should be shifted to the right in pixels - [-infinity, infinity]
+#define shadow_offset_y 1.0	//how far the shadow should be shifted to down in pixels - [-infinity, infinity]
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //structs                                                                                                                                 //
@@ -50,6 +47,10 @@ struct pass_2
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//vertex definitions                                                                                                                      //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //vertex shader                                                                                                                           //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -57,84 +58,60 @@ void main_vertex( float4 position      			: POSITION,
   		  out float4 oPosition 			: POSITION,
   		  float2 texCoord      			: TEXCOORD0,
   		  out float2 oTexCoord 			: TEXCOORD0,
+		  out float2 oTexel			: TEXCOORD1,
   		  uniform float4x4 modelViewProj,
   		  uniform input IN )
 {
     oPosition = mul(modelViewProj, position);
     oTexCoord = texCoord;
+
+    oTexel = 1.0 / IN.texture_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //fragment definitions                                                                                                                    //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define bg_tint_coordinate float2(0.5, 0.125)	//coordinate of the transparent tint from the color palette file
+#define bg_color tex2D(COLOR_PALETTE, fixed2(0.25, 0.5))				//sample the background color from the palette
+#define shadow_alpha (contrast * shadow_opacity)					//blending factor used when overlaying shadows on the background
+#define shadow_offset float2(shadow_offset_x * texel.x, shadow_offset_y * texel.y)	//offset for the shadow
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //fragment shader                                                                                                                         //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 float4 main_fragment( float2 texCoord        		: TEXCOORD0, 
-		      uniform sampler2D BACKGROUND	: TEXUNIT2,
-		      uniform sampler2D COLOR_PALETTE	: TEXUNIT3,
+		      in float2 texel			: TEXCOORD1,
 		      uniform input IN,
-		      uniform pass_2 PASS2 )     	: COLOR
+		      uniform pass_2 PASS2,
+		      uniform sampler2D COLOR_PALETTE	: TEXUNIT2,
+		      uniform sampler2D BACKGROUND	: TEXUNIT3 ) 		: COLOR
 {
-  //sample all the textures going into the final output
+  //sample all the relevant textures
 
-    fixed4 scene_texture = tex2D(PASS2.texture, texCoord);
-    fixed4 shadow_texture = tex2D(IN.texture, texCoord);
-    fixed4 bg_texture = tex2D(BACKGROUND, texCoord) * fixed4(tex2D(COLOR_PALETTE, bg_tint_coordinate).rgb, 0.0);
-
-
-  //alpha blend the shadows with the background image
-
-    fixed4 shadow_modified_color = shadow_texture * shadow_texture.a;
-    fixed shadow_modified_alpha = 1.0 - shadow_texture.a;
-    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);		//form of bg_texture = (shadow_texture * shadow_texture.a) + (bg_texture * (1.0 - shadow_texture.a));
+    fixed4 foreground = tex2D(PASS2.texture, texCoord);
+    fixed4 background = tex2D(BACKGROUND, texCoord);
+    fixed4 shadows    = tex2D(IN.texture, texCoord - shadow_offset);
+    fixed4 background_color = bg_color;
 
 
-  //darkens the shadow on the background - higher quality than directly increasing the shadow's alpha values (ie. shadow_texture.a *= 1.2) but there must be a better way...
+  //foreground and background colors are multiplicatively blended with the background color
 
-    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
-    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
-    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
-    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
-    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
-    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
-    bg_texture = shadow_modified_color + (bg_texture * shadow_modified_alpha);
+    foreground *= bg_color;
+    background *= bg_color;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
-//debugging                                                                                              //
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
-#ifdef SCENE_ONLY
-    return scene_texture;
-#endif
 
-#ifdef SHADOWS_ONLY
-    return shadow_texture;
-#endif
+  //shadows are alpha blended with the background
 
-#ifdef BACKGROUND_ONLY
-    return tex2D(BACKGROUND, texCoord) * fixed4(tex2D(COLOR_PALETTE, bg_tint_coordinate).rgb, 0.0);
-#endif
+    fixed4 out_color = (shadows * shadows.a * shadow_alpha) + (background * (1 - shadows.a * shadow_alpha));
 
-#ifdef SCENE_AND_SHADOWS
-    return (scene_texture * scene_texture.a) + (shadow_texture * (1 - scene_texture.a));
-#endif
 
-#ifdef SCENE_AND_BACKGROUND
-    return (scene_texture * scene_texture.a) + 
-	   ((tex2D(BACKGROUND, texCoord) * fixed4(tex2D(COLOR_PALETTE, bg_tint_coordinate).rgb, 0.0)) * (1 - scene_texture.a));
-#endif
+  //foreground is alpha blended with the shadowed background
 
-#ifdef SHADOWS_AND_BACKGROUND
-    return bg_texture;
-#endif
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
+    out_color = (foreground * foreground.a * contrast) + (out_color * (1 - foreground.a * contrast));
 
-  //alpha blend the scene with the shadowed background image and return
 
-    return (scene_texture * scene_texture.a) + (bg_texture * (1 - scene_texture.a));
+  //return fragment
+
+    return out_color; 
 }
