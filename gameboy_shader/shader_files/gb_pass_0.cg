@@ -23,8 +23,8 @@
 //config                                                                                                                                  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define baseline_alpha 0.02	//the alpha value of dots in their "off" state, does not affect the border region of the screen - [0, 1]
-#define response_time 0.4	//simulate response time, higher values result in longer color transition periods - [0, 1]
+#define baseline_alpha 0.15	//the alpha value of dots in their "off" state, does not affect the border region of the screen - [0, 1]
+#define response_time 0.333	//simulate response time, higher values result in longer color transition periods - [0, 1]
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //structs                                                                                                                                 //
