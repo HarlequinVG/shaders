@@ -89,7 +89,6 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 		      uniform sampler2D BACKGROUND	: TEXUNIT3 ) 		: COLOR
 {
   //sample all the relevant textures	
-  //ISSUE - ALPHA VALUES ALL BEING REPORTED AS 1.0 UNDER D3D
 
     fixed4 foreground = tex2D(PASS2.texture, texCoord);
     fixed4 background = tex2D(BACKGROUND, texCoord);
@@ -101,8 +100,11 @@ float4 main_fragment( float2 texCoord        		: TEXCOORD0,
 
     foreground *= bg_color;
     background -= (background - 0.5) * bg_smoothing * fixed(foreground.a > 0.0);	//suppress drastic background color changes under the foreground to improve clarity
-    background = saturate(bg_color + lerp(-1.0, 1.0, background));			//allows for highlights, background = bg_color when the background color is 0.5 gray
 
+    background.rgb = saturate(fixed3( 				//allows for highlights, background = bg_color when the background color is 0.5 gray
+	bg_color.r + lerp(-1.0, 1.0, background.r), 
+	bg_color.g + lerp(-1.0, 1.0, background.g), 
+	bg_color.b + lerp(-1.0, 1.0, background.b) ));
 
   //shadows are alpha blended with the background
 
