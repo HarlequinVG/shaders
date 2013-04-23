@@ -13,9 +13,11 @@ Requirements
 
 As of this commit, the requisites for this shader to run properly are as follows:
 
-- `video driver` set to `OpenGL` under RetroArch's video settings
-- `integer scaling` `disabled` under RetroArch's video settings (prevents the border from displaying properly)
-- the display window itself must be non-integer scaled in order for the border to display (set to fullscreen, or drag the corner a little to give it more room)
++ `integer scaling` `disabled` under RetroArch's video settings (prevents the border from displaying properly)
++ the display window itself must be non-integer scaled in order for the border to display, for this you can:
+ +  run RetroArch in fullscreen mode
+ +  set RetroArch to run in Window mode at a non-integer scale (ex. 5.5) under video settings
+ +  drag the corner of the RetroArch window to increase its size an arbitrary amount
 
 If you follow the above two restrictions and the shader still doesn't work, it's like a GPU incompatibility issue. These should be worked out in future commits.
 
@@ -61,4 +63,4 @@ The background will exactly equal the background color from the palette at 0.5 g
 Issues
 --------------
 
-+ will not run in D3D mode
++ no known issues
