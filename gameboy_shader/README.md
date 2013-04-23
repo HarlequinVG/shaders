@@ -29,36 +29,34 @@ There are configuration options throughout the .cg files in the `gameboy_shader/
 
 + `gameboy_shader/shader_files/gb_pass_0.cg`
  
-  `#define baseline_alpha 0.02 //the alpha value of dots in their "off" state, does not affect the border region of the screen - [0, 1]`
-  `#define response_time 0.4 //simulate response time, higher values result in longer color transition periods - [0, 1]`
-
-
+ +  `#define baseline_alpha 0.02 //the alpha value of dots in their "off" state, does not affect the border region of the screen - [0, 1]`
+ +  `#define response_time 0.4 //simulate response time, higher values result in longer color transition periods - [0, 1]`
+<br><br>
 + `gameboy_shader/shader_files/gb_pass_1.cg`
  
-  `#define blending_mode 0 //0 - only the space between dots is blending, 1 - all texels are blended`
-  `#define adjacent_texel_alpha_blending 0.1255  //the amount of alpha swapped between neighboring texels`
-
-
+ +  `#define blending_mode 0 //0 - only the space between dots is blending, 1 - all texels are blended`
+ +  `#define adjacent_texel_alpha_blending 0.1255  //the amount of alpha swapped between neighboring texels`
+<br><br>
 + `gameboy_shader/shader_files/gb_pass_4.cg`
  
-  `#define contrast 0.95 //analogous to the contrast slider on the original Gameboy, higher values darken the image - [0, 1]`
-  `#define bg_smoothing 0.75 //higher values suppress changes in background color directly beneath the foreground to improve image clarity - [0, 1]`
-  `#define shadow_opacity 0.65 //how strongly shadows affect the background, higher values darken the shadows - [0, 1]`
-  `#define shadow_offset_x 1.0 //how far the shadow should be shifted to the right in pixels - [-infinity, infinity]`
-  `#define shadow_offset_y 1.0 //how far the shadow should be shifted to down in pixels - [-infinity, infinity]`
+ +  `#define contrast 0.95 //analogous to the contrast slider on the original Gameboy, higher values darken the image - [0, 1]`
+ +  `#define bg_smoothing 0.75 //higher values suppress changes in background color directly beneath the foreground to improve image clarity - [0, 1]`
+ +  `#define shadow_opacity 0.65 //how strongly shadows affect the background, higher values darken the shadows - [0, 1]`
+ +  `#define shadow_offset_x 1.0 //how far the shadow should be shifted to the right in pixels - [-infinity, infinity]`
+ +  `#define shadow_offset_y 1.0 //how far the shadow should be shifted to down in pixels - [-infinity, infinity]`
 
 Changing the palette and background images
 --------------
 
 You will find the files for the palette and background in the `gameboy_shader/resources/` directory. These files can be edited or replaced using any image editor as long as you keep the format the same and filetype intact.
 
-+ Color palette<br>
-`gameboy_shader/resources/palette.png, 128x64`
-Two horizontally aranged 64x64 squares filled in with the background color (left) and foreground color (right)
-
-+ Background image<br>
-`gameboy_shader/resources/background.png, 2048x2048`
-The background will exactly equal the background color from the palette at 0.5 gray. Higher values in the background image will result in lighter colors while lower values will result in darker colors.
++ Color palette
+ + `gameboy_shader/resources/palette.png, 128x64`
+ + Two horizontally aranged 64x64 squares filled in with the background color (left) and foreground color (right)
+<br><br>
++ Background image
+ + `gameboy_shader/resources/background.png, 2048x2048`<br>
+ + The background will exactly equal the background color from the palette at 0.5 gray. Higher values in the background image will result in lighter colors while lower values will result in darker colors.
 
 Issues
 --------------
