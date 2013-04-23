@@ -11,7 +11,7 @@ In RetroArch's shader options, load the `gameboy_shader.cgp` file found in the `
 Requirements
 --------------
 
-As of this commit, the requisites for this shader to run properly are as follows:
+As of 0.9.9-wip1, the requisites for this shader to run properly are as follows:
 
 + `integer scaling` `disabled` under RetroArch's video settings (prevents the border from displaying properly)
 + the display window itself must be non-integer scaled in order for the border to display, for this you can:
