@@ -75,10 +75,13 @@ void main_vertex( float4 position      			: POSITION,
 //fragment definitions                                                                                                                    //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define cell_scale 1.0
 #define triad_color_0 fixed3(1.0, 0.0, 1.0)	//magenta
 #define triad_color_1 fixed3(1.0, 1.0, 0.0)	//yellow
 #define triad_color_2 fixed3(0.0, 1.0, 1.0)	//cyan
+
+//#define triad_color_0 fixed3(0.0, 0.0, 1.0)	//blue
+//#define triad_color_1 fixed3(1.0, 0.0, 0.0)	//red
+//#define triad_color_2 fixed3(0.0, 1.0, 0.0)	//green
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //fragment shader                                                                                                                         //
